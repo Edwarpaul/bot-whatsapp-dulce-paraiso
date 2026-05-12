@@ -100,8 +100,23 @@ function markFollowup(ss, phone) {
   }
 }
 
+// Ejecuta esta funcion UNA vez para instalar el trigger con permisos completos
+function instalarTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var t = 0; t < triggers.length; t++) {
+    if (triggers[t].getHandlerFunction() === 'onEditCalendar') {
+      ScriptApp.deleteTrigger(triggers[t]);
+    }
+  }
+  ScriptApp.newTrigger('onEditCalendar')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onEdit()
+    .create();
+  Logger.log('Trigger instalado correctamente');
+}
+
 // Se ejecuta automaticamente cuando Any edita el Sheets
-function onEdit(e) {
+function onEditCalendar(e) {
   var sheet = e.range.getSheet();
   if (sheet.getName() !== 'Clientes') return;
 
