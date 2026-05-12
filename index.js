@@ -161,6 +161,19 @@ client.on('disconnected', (reason) => {
   setTimeout(() => client.initialize(), 5000);
 });
 
+client.on('message_create', async (msg) => {
+  if (!msg.fromMe) return;
+  if (msg.to.includes('g.us')) return;
+  const phone = msg.to;
+  const conv = conversations.get(phone) || { state: STATES.NEW, data: {} };
+  if (conv.state !== STATES.HANDOFF) {
+    conv.state = STATES.HANDOFF;
+    conversations.set(phone, conv);
+    saveClient(phone, conv.state, conv.data);
+    console.log('HANDOFF activado para ' + phone + ' (Any escribio)');
+  }
+});
+
 client.on('message', async (msg) => {
   if (msg.from.includes('g.us')) return;
   if (msg.fromMe) return;
