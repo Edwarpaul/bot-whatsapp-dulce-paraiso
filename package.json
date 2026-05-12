@@ -7,7 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js",
+    "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js",
     "qrcode": "^1.5.3"
   },
   "engines": {
