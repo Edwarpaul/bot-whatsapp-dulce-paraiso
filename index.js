@@ -218,7 +218,7 @@ client.on('message', async (msg) => {
         conv.state = STATES.HANDOFF;
       } else {
         reply = MSG.no_guiar;
-        conv.state = STATES.DONE;
+        conv.state = STATES.HANDOFF;
       }
       break;
     }
