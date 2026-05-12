@@ -141,9 +141,10 @@ http.createServer(async (req, res) => {
 
 const client = new Client({
   authStrategy: new LocalAuth(),
+  webVersionCache: { type: 'none' },
   puppeteer: {
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-default-apps']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-default-apps', '--memory-pressure-off', '--max_old_space_size=512']
   }
 });
 
@@ -153,6 +154,11 @@ client.on('ready', () => {
   currentQR = null;
   console.log('Bot conectado y listo!');
   setInterval(checkFollowUps, 60 * 60 * 1000);
+});
+client.on('disconnected', (reason) => {
+  console.log('Bot desconectado:', reason);
+  isConnected = false;
+  setTimeout(() => client.initialize(), 5000);
 });
 
 client.on('message', async (msg) => {
@@ -225,7 +231,14 @@ client.on('message', async (msg) => {
   conversations.set(phone, conv);
   saveClient(phone, conv.state, conv.data);
 
-  if (reply) await msg.reply(reply);
+  if (reply) {
+    try {
+      await msg.reply(reply);
+    } catch(e) {
+      console.log('Error al responder:', e.message);
+      try { await client.sendMessage(phone, reply); } catch(e2) {}
+    }
+  }
 });
 
 client.initialize();
