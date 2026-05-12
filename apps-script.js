@@ -100,19 +100,69 @@ function markFollowup(ss, phone) {
   }
 }
 
-// Ejecuta esta funcion UNA vez para instalar el trigger con permisos completos
+// Ejecuta esta funcion UNA vez para instalar el trigger cada 5 minutos
 function instalarTrigger() {
   var triggers = ScriptApp.getProjectTriggers();
   for (var t = 0; t < triggers.length; t++) {
+    if (triggers[t].getHandlerFunction() === 'checkVentas') {
+      ScriptApp.deleteTrigger(triggers[t]);
+    }
     if (triggers[t].getHandlerFunction() === 'onEditCalendar') {
       ScriptApp.deleteTrigger(triggers[t]);
     }
   }
-  ScriptApp.newTrigger('onEditCalendar')
-    .forSpreadsheet(SpreadsheetApp.getActive())
-    .onEdit()
+  ScriptApp.newTrigger('checkVentas')
+    .timeBased()
+    .everyMinutes(5)
     .create();
-  Logger.log('Trigger instalado correctamente');
+  Logger.log('Trigger instalado: revisara ventas cada 5 minutos');
+}
+
+// Revisa cada 5 minutos si hay ventas nuevas para agendar en Calendar
+function checkVentas() {
+  var ss = SpreadsheetApp.openById(SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getId() : null);
+  if (!ss) {
+    var files = DriveApp.getFilesByName('Bot WhatsApp - Dulce Paraiso');
+    if (!files.hasNext()) return;
+    ss = SpreadsheetApp.open(files.next());
+  }
+  var sheet = ss.getSheetByName('Clientes');
+  if (!sheet) return;
+
+  var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+  if (!calendar) return;
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  for (var i = 2; i <= lastRow; i++) {
+    var estadoVenta = sheet.getRange(i, 8).getValue().toString().trim().toLowerCase();
+    var fechaEntrega = sheet.getRange(i, 9).getValue();
+    var eventoCreado = sheet.getRange(i, 10).getValue();
+
+    if (estadoVenta !== 'vendida') continue;
+    if (!fechaEntrega) continue;
+    if (eventoCreado) continue;
+
+    var phone = sheet.getRange(i, 1).getValue();
+    var porciones = sheet.getRange(i, 3).getValue();
+    var diseno = sheet.getRange(i, 4).getValue();
+
+    try {
+      var fecha = new Date(fechaEntrega);
+      var titulo = 'Entregar tarta - ' + phone;
+      if (porciones) titulo += ' - ' + porciones + ' porciones';
+      var descripcion = 'Telefono: ' + phone;
+      if (porciones) descripcion += '\nPorciones: ' + porciones;
+      if (diseno) descripcion += '\nDiseno: ' + diseno;
+
+      calendar.createAllDayEvent(titulo, fecha, { description: descripcion });
+      sheet.getRange(i, 10).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
+      Logger.log('Evento creado para ' + phone);
+    } catch(err) {
+      Logger.log('Error: ' + err.toString());
+    }
+  }
 }
 
 // Ejecuta esta funcion para probar que Calendar funciona correctamente
@@ -128,7 +178,7 @@ function testCalendar() {
   Logger.log('EXITO: Evento de prueba creado en calendario Dulce Paraiso');
 }
 
-// Se ejecuta automaticamente cuando Any edita el Sheets
+// Funcion legacy - ya no se usa, sustituida por checkVentas
 function onEditCalendar(e) {
   var sheet = e.range.getSheet();
   if (sheet.getName() !== 'Clientes') return;
