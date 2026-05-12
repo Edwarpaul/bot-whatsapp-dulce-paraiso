@@ -6,6 +6,14 @@
 // ============================================================
 
 var CALENDAR_ID = '72352a803f5dc31abdd59e82fac9f35c09b3abfab00987870ea44c476cf2937b@group.calendar.google.com';
+var SPREADSHEET_ID = '1vwFtV9yksLvmdrdaAXA6ZSaVb2pokZO_vrK5olVETE4';
+
+// Crea el menu "Dulce Paraiso" en Google Sheets
+function onOpen() {
+  SpreadsheetApp.getActiveSpreadsheet().addMenu('Dulce Paraiso', [
+    { name: 'Crear eventos en Calendar', functionName: 'checkVentas' }
+  ]);
+}
 
 function doGet(e) {
   var action = e.parameter.action;
