@@ -115,6 +115,19 @@ function instalarTrigger() {
   Logger.log('Trigger instalado correctamente');
 }
 
+// Ejecuta esta funcion para probar que Calendar funciona correctamente
+function testCalendar() {
+  var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+  if (!calendar) {
+    Logger.log('ERROR: Calendario no encontrado con ID: ' + CALENDAR_ID);
+    return;
+  }
+  var fecha = new Date();
+  fecha.setDate(fecha.getDate() + 30);
+  calendar.createAllDayEvent('TEST - Entregar tarta prueba', fecha, { description: 'Evento de prueba - puedes borrarlo' });
+  Logger.log('EXITO: Evento de prueba creado en calendario Dulce Paraiso');
+}
+
 // Se ejecuta automaticamente cuando Any edita el Sheets
 function onEditCalendar(e) {
   var sheet = e.range.getSheet();
