@@ -2,6 +2,8 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const QRCode = require('qrcode');
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || '';
 const PORT = process.env.PORT || 3000;
@@ -20,16 +22,29 @@ let currentQR = null;
 let isConnected = false;
 
 let botMessages = {
-  bienvenida: 'Hola! Bienvenida a Dulce Paraiso, pasteleria casera con sabor venezolano en Malaga. Estamos encantadas de ayudarte!',
+  bienvenida: 'Hola! Bienvenida a Dulce Paraiso, pasteleria casera con sabor venezolano en Malaga. Estamos encantadas de ayudarte a crear tu tarta especial!',
   porciones: 'Para ayudarte mejor, cuantas personas van a disfrutar la tarta?',
-  diseno: 'Perfecto! Tienes algun diseno o modelo en mente? Puedes ver nuestro catalogo en www.dulceparaiso.es. Si no tienes idea no te preocupes!',
+  diseno: 'Perfecto! Tienes algun diseno o modelo en mente? Puedes ver nuestro catalogo en www.dulceparaiso.es para inspirarte. Si no tienes idea no te preocupes, te ayudamos!',
   guiar: 'Te gustaria que te guiemos paso a paso para crear la tarta perfecta para ti? Responde SI o NO.',
-  si_guiar: 'Genial! Any te va a atender personalmente ahora para ayudarte a disenar tu tarta ideal.',
-  no_guiar: 'Sin problema! Visita www.dulceparaiso.es o escribenos al 681 90 19 14 cuando lo tengas claro.',
-  seguimiento: 'Hola! Soy Dulce Paraiso. Como te parecio nuestra propuesta? Te gustaria que hagamos tu tarta especial?',
-  respuesta_default: 'Gracias por contactar a Dulce Paraiso! Escribenos al 681 90 19 14 o visita www.dulceparaiso.es.'
+  si_guiar: 'Genial! Any te va a atender personalmente ahora para ayudarte a disenar tu tarta ideal. En breve te escribe!',
+  no_guiar: 'Sin problema! Puedes ver disenos en www.dulceparaiso.es cuando lo tengas claro. Estamos aqui para lo que necesites!',
+  seguimiento: 'Hola! Soy Dulce Paraiso. Como te parecio nuestra propuesta? Te gustaria que hagamos tu tarta especial? Estamos aqui para ayudarte.',
+  respuesta_default: 'Estamos aqui para ayudarte! Cuentanos que necesitas o visita www.dulceparaiso.es para ver nuestro catalogo de tartas.'
 };
-let quickResponses = [];
+let quickResponses = [
+  { keywords: 'precio,presupuesto,cuanto cuesta,cuanto vale,coste', response: 'Los precios varian segun el tamano y diseno. Cuentanos cuantas personas sois y que ocasion es para darte un presupuesto personalizado!' },
+  { keywords: 'entrega,envio,domicilio,llevas,reparto', response: 'Si, hacemos entregas a domicilio en Malaga y alrededores. El coste depende de la distancia. Preguntanos sin compromiso!' },
+  { keywords: 'sabores,chocolate,vainilla,tres leches,red velvet,opciones', response: 'Hacemos todo tipo de tartas: tres leches, chocolate, vainilla, red velvet, drip cake y mucho mas. Tambien sin lactosa. Mira fotos en www.dulceparaiso.es' },
+  { keywords: 'tiempo,plazo,anticipacion,cuando,urgente', response: 'Necesitamos un minimo de 72 horas. Para bodas o eventos grandes reserva con mas tiempo!' },
+  { keywords: 'cumpleanos,cumple,aniversario,fiesta', response: 'Los cumpleanos merecen algo especial! Hacemos tartas personalizadas para cada ocasion. Cuentanos cuantas personas sois y la fecha!' },
+  { keywords: 'boda,matrimonio,novios', response: 'Felicidades! Hacemos tartas nupciales con amor venezolano. Cuentanos tu vision y lo hacemos realidad!' },
+  { keywords: 'pago,pagar,bizum,transferencia,efectivo', response: 'Aceptamos Bizum, transferencia bancaria y efectivo.' },
+  { keywords: 'sin gluten,celiaca,gluten', response: 'Por ahora no hacemos tartas sin gluten, pero si sin lactosa. Para alergias especificas cuentanoslo!' },
+  { keywords: 'diseno,personalizada,foto,nombre,dedicatoria', response: 'Si, hacemos tartas totalmente personalizadas con fotos, nombres y el diseno que quieras. Solo cuentanos tu idea!' },
+  { keywords: 'venezuela,venezolana,casera', response: 'Todas nuestras tartas son caseras, hechas con recetas venezolanas y mucho amor. Ingredientes frescos y sabor autentico!' },
+  { keywords: 'ninos,infantil,bebe,baby shower', response: 'Hacemos tartas infantiles super originales y personalizadas. Cuentanos la edad y el tema favorito del pequeno!' },
+  { keywords: 'gracias,muchas gracias,perfecto,genial,chevere', response: 'Gracias a ti! Esperamos endulzar tu dia especial con nuestras tartas venezolanas!' }
+];
 
 function httpsGet(url) {
   return new Promise((resolve) => {
