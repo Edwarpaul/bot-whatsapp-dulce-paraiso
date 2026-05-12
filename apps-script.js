@@ -78,8 +78,8 @@ function getFollowups(ss) {
   var now = new Date();
   for (var i = 1; i < rows.length; i++) {
     var phone = rows[i][0];
-    var ofertaFecha = rows[i][5];
-    var seguimientoEnviado = rows[i][6];
+    var ofertaFecha = rows[i][6];
+    var seguimientoEnviado = rows[i][7];
     if (phone && ofertaFecha && !seguimientoEnviado) {
       var ofertaDate = new Date(ofertaFecha);
       var diffHours = (now - ofertaDate) / (1000 * 60 * 60);
@@ -96,18 +96,18 @@ function updateClient(ss, data) {
   var values = sheet.getDataRange().getValues();
   for (var i = 1; i < values.length; i++) {
     if (values[i][0] === phone) {
-      if (data.state) sheet.getRange(i + 1, 2).setValue(data.state);
-      if (data.porciones) sheet.getRange(i + 1, 3).setValue(data.porciones);
-      if (data.diseno) sheet.getRange(i + 1, 4).setValue(data.diseno);
-      sheet.getRange(i + 1, 5).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
+      if (data.state) sheet.getRange(i + 1, 3).setValue(data.state);
+      if (data.porciones) sheet.getRange(i + 1, 4).setValue(data.porciones);
+      if (data.diseno) sheet.getRange(i + 1, 5).setValue(data.diseno);
+      sheet.getRange(i + 1, 6).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
       return;
     }
   }
   var lastRow = sheet.getLastRow() + 1;
-  sheet.appendRow([phone, data.state || 'nuevo', data.porciones || '', data.diseno || '',
+  sheet.appendRow([phone, '', data.state || 'nuevo', data.porciones || '', data.diseno || '',
     Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'), '', '', '', '', '']);
   var color = (lastRow % 2 === 0) ? '#e8f5e9' : '#ffffff';
-  sheet.getRange(lastRow, 1, 1, 10).setBackground(color);
+  sheet.getRange(lastRow, 1, 1, 11).setBackground(color);
 }
 
 function markFollowup(ss, phone) {
@@ -116,7 +116,7 @@ function markFollowup(ss, phone) {
   var values = sheet.getDataRange().getValues();
   for (var i = 1; i < values.length; i++) {
     if (values[i][0] === phone) {
-      sheet.getRange(i + 1, 7).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
+      sheet.getRange(i + 1, 8).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
       return;
     }
   }
@@ -154,23 +154,25 @@ function checkVentas() {
   if (lastRow < 2) return;
 
   for (var i = 2; i <= lastRow; i++) {
-    var estadoVenta = sheet.getRange(i, 8).getValue().toString().trim().toLowerCase();
-    var fechaEntrega = sheet.getRange(i, 9).getValue();
-    var eventoCreado = sheet.getRange(i, 10).getValue();
+    var estadoVenta = sheet.getRange(i, 9).getValue().toString().trim().toLowerCase();
+    var fechaEntrega = sheet.getRange(i, 10).getValue();
+    var eventoCreado = sheet.getRange(i, 11).getValue();
 
     if (estadoVenta !== 'vendida') continue;
     if (!fechaEntrega) continue;
     if (eventoCreado) continue;
 
     var phone = sheet.getRange(i, 1).getValue();
-    var porciones = sheet.getRange(i, 3).getValue();
-    var diseno = sheet.getRange(i, 4).getValue();
+    var nombre = sheet.getRange(i, 2).getValue();
+    var porciones = sheet.getRange(i, 4).getValue();
+    var diseno = sheet.getRange(i, 5).getValue();
 
     try {
       var fecha = new Date(fechaEntrega);
-      var titulo = 'Entregar tarta - ' + phone;
+      var clienteId = nombre ? nombre : phone;
+      var titulo = 'Entregar tarta - ' + clienteId;
       if (porciones) titulo += ' - ' + porciones + ' porciones';
-      var descripcion = 'Telefono: ' + phone;
+      var descripcion = nombre ? 'Cliente: ' + nombre + '\nTelefono: ' + phone : 'Telefono: ' + phone;
       if (porciones) descripcion += '\nPorciones: ' + porciones;
       if (diseno) descripcion += '\nDiseno: ' + diseno;
 
@@ -279,22 +281,24 @@ function setupHoja() {
   var clientesSheet = ss.getSheetByName('Clientes');
   if (!clientesSheet) clientesSheet = ss.insertSheet('Clientes', 1);
   clientesSheet.clearContents();
-  var headers = [['Telefono', 'Estado', 'Porciones', 'Diseno solicitado', 'Ultimo contacto', 'Oferta enviada (escribe la fecha)', 'Seguimiento enviado', 'Estado venta', 'Fecha de entrega', 'Evento en Calendar']];
-  clientesSheet.getRange(1, 1, 1, 10).setValues(headers);
-  clientesSheet.getRange(1, 1, 1, 10).setBackground('#1565c0').setFontColor('#ffffff').setFontWeight('bold');
+  var headers = [['Telefono', 'Nombre del cliente', 'Estado', 'Porciones', 'Diseno solicitado', 'Ultimo contacto', 'Oferta enviada (escribe la fecha)', 'Seguimiento enviado', 'Estado venta', 'Fecha de entrega', 'Evento en Calendar']];
+  clientesSheet.getRange(1, 1, 1, 11).setValues(headers);
+  clientesSheet.getRange(1, 1, 1, 11).setBackground('#1565c0').setFontColor('#ffffff').setFontWeight('bold');
   clientesSheet.setColumnWidth(1, 150);
-  clientesSheet.setColumnWidth(2, 120);
-  clientesSheet.setColumnWidth(3, 110);
-  clientesSheet.setColumnWidth(4, 220);
-  clientesSheet.setColumnWidth(5, 170);
-  clientesSheet.setColumnWidth(6, 200);
-  clientesSheet.setColumnWidth(7, 180);
-  clientesSheet.setColumnWidth(8, 130);
-  clientesSheet.setColumnWidth(9, 160);
-  clientesSheet.setColumnWidth(10, 170);
-  clientesSheet.getRange(1, 6).setNote('Any: cuando envies una oferta, escribe aqui la fecha (ej: 12/05/2026). El bot enviara seguimiento automatico al dia siguiente.');
-  clientesSheet.getRange(1, 8).setNote('Any: escribe "Vendida" cuando la clienta confirme el pedido.');
-  clientesSheet.getRange(1, 9).setNote('Any: escribe la fecha de entrega (ej: 20/06/2026). Al marcar Vendida + fecha, se crea el evento en Google Calendar automaticamente.');
+  clientesSheet.setColumnWidth(2, 160);
+  clientesSheet.setColumnWidth(3, 120);
+  clientesSheet.setColumnWidth(4, 110);
+  clientesSheet.setColumnWidth(5, 220);
+  clientesSheet.setColumnWidth(6, 170);
+  clientesSheet.setColumnWidth(7, 200);
+  clientesSheet.setColumnWidth(8, 180);
+  clientesSheet.setColumnWidth(9, 130);
+  clientesSheet.setColumnWidth(10, 160);
+  clientesSheet.setColumnWidth(11, 170);
+  clientesSheet.getRange(1, 2).setNote('Any: escribe aqui el nombre de la clienta para identificarla en Google Calendar.');
+  clientesSheet.getRange(1, 7).setNote('Any: cuando envies una oferta, escribe aqui la fecha (ej: 12/05/2026). El bot enviara seguimiento automatico al dia siguiente.');
+  clientesSheet.getRange(1, 9).setNote('Any: escribe "Vendida" cuando la clienta confirme el pedido.');
+  clientesSheet.getRange(1, 10).setNote('Any: escribe la fecha de entrega (ej: 20/06/2026). Al marcar Vendida + fecha, se crea el evento en Google Calendar automaticamente.');
 
   // --- Pestana 3: Respuestas Rapidas ---
   var rrSheet = ss.getSheetByName('Respuestas Rapidas');
