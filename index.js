@@ -64,7 +64,9 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-  console.log('\nEscanea este QR con el WhatsApp de Dulce Paraiso:\n');
+  console.log('\n=== ESCANEA ESTE ENLACE CON TU MOVIL ===');
+  console.log('https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qr));
+  console.log('========================================\n');
   qrcode.generate(qr, { small: true });
 });
 
