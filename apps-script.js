@@ -120,7 +120,7 @@ function instalarTrigger() {
 
 // Revisa cada 5 minutos si hay ventas nuevas para agendar en Calendar
 function checkVentas() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById('1vwFtV9yksLvmdrdaAXA6ZSaVb2pokZO_vrK5olVETE4');
   if (!ss) return;
   var sheet = ss.getSheetByName('Clientes');
   if (!sheet) return;
