@@ -120,12 +120,8 @@ function instalarTrigger() {
 
 // Revisa cada 5 minutos si hay ventas nuevas para agendar en Calendar
 function checkVentas() {
-  var ss = SpreadsheetApp.openById(SpreadsheetApp.getActive() ? SpreadsheetApp.getActive().getId() : null);
-  if (!ss) {
-    var files = DriveApp.getFilesByName('Bot WhatsApp - Dulce Paraiso');
-    if (!files.hasNext()) return;
-    ss = SpreadsheetApp.open(files.next());
-  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return;
   var sheet = ss.getSheetByName('Clientes');
   if (!sheet) return;
 
