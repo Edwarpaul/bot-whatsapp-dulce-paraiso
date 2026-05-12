@@ -18,6 +18,7 @@ const STATES = {
 };
 
 const conversations = new Map();
+const botReplying = new Set();
 let currentQR = null;
 let isConnected = false;
 
@@ -183,7 +184,10 @@ client.on('disconnected', (reason) => {
 client.on('message_create', async (msg) => {
   if (!msg.fromMe) return;
   if (msg.to.includes('g.us')) return;
+  if (msg.to === 'status@broadcast') return;
   const phone = msg.to;
+  // Ignorar respuestas automaticas del bot
+  if (botReplying.has(phone)) return;
   const conv = conversations.get(phone) || { state: STATES.NEW, data: {} };
   if (conv.state !== STATES.HANDOFF) {
     conv.state = STATES.HANDOFF;
@@ -195,6 +199,7 @@ client.on('message_create', async (msg) => {
 
 client.on('message', async (msg) => {
   if (msg.from.includes('g.us')) return;
+  if (msg.from === 'status@broadcast') return;
   if (msg.fromMe) return;
 
   const phone = msg.from;
@@ -264,6 +269,8 @@ client.on('message', async (msg) => {
   saveClient(phone, conv.state, conv.data);
 
   if (reply) {
+    botReplying.add(phone);
+    setTimeout(() => botReplying.delete(phone), 5000);
     try {
       await msg.reply(reply);
     } catch(e) {
