@@ -5,6 +5,8 @@
 // Luego despliega como aplicacion web y copia la URL
 // ============================================================
 
+var CALENDAR_ID = '72352a803f5dc31abdd59e82fac9f35c09b3abfab00987870ea44c476cf2937b@group.calendar.google.com';
+
 function doGet(e) {
   var action = e.parameter.action;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -81,9 +83,9 @@ function updateClient(ss, data) {
   }
   var lastRow = sheet.getLastRow() + 1;
   sheet.appendRow([phone, data.state || 'nuevo', data.porciones || '', data.diseno || '',
-    Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'), '', '']);
+    Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'), '', '', '', '', '']);
   var color = (lastRow % 2 === 0) ? '#e8f5e9' : '#ffffff';
-  sheet.getRange(lastRow, 1, 1, 7).setBackground(color);
+  sheet.getRange(lastRow, 1, 1, 10).setBackground(color);
 }
 
 function markFollowup(ss, phone) {
@@ -98,6 +100,56 @@ function markFollowup(ss, phone) {
   }
 }
 
+// Se ejecuta automaticamente cuando Any edita el Sheets
+function onEdit(e) {
+  var sheet = e.range.getSheet();
+  if (sheet.getName() !== 'Clientes') return;
+
+  var row = e.range.getRow();
+  var col = e.range.getColumn();
+  if (row < 2) return;
+
+  // Solo reacciona si se edita columna H (estado venta) o columna I (fecha entrega)
+  if (col !== 8 && col !== 9) return;
+
+  var estadoVenta = sheet.getRange(row, 8).getValue().toString().trim().toLowerCase();
+  var fechaEntrega = sheet.getRange(row, 9).getValue();
+  var eventoCreado = sheet.getRange(row, 10).getValue();
+
+  // Si ya se creo el evento, no crear otro
+  if (eventoCreado) return;
+
+  // Solo crear evento si esta "vendida" Y tiene fecha de entrega
+  if (estadoVenta !== 'vendida') return;
+  if (!fechaEntrega) return;
+
+  var phone = sheet.getRange(row, 1).getValue();
+  var porciones = sheet.getRange(row, 3).getValue();
+  var diseno = sheet.getRange(row, 4).getValue();
+
+  try {
+    var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!calendar) {
+      Logger.log('Calendario no encontrado: ' + CALENDAR_ID);
+      return;
+    }
+
+    var fecha = new Date(fechaEntrega);
+    var titulo = 'Entregar tarta - ' + phone;
+    if (porciones) titulo += ' - ' + porciones + ' porciones';
+    var descripcion = 'Telefono: ' + phone;
+    if (porciones) descripcion += '\nPorciones: ' + porciones;
+    if (diseno) descripcion += '\nDiseno: ' + diseno;
+
+    calendar.createAllDayEvent(titulo, fecha, { description: descripcion });
+
+    sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), 'Europe/Madrid', 'dd/MM/yyyy HH:mm'));
+    Logger.log('Evento creado en calendar para ' + phone);
+  } catch(err) {
+    Logger.log('Error creando evento: ' + err.toString());
+  }
+}
+
 // Ejecuta esta funcion UNA vez para crear todas las pestanas
 function setupHoja() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -108,14 +160,16 @@ function setupHoja() {
   msgSheet.clearContents();
   var mensajes = [
     ['Paso', 'Mensaje (Any puede editar estos textos)'],
-    ['bienvenida', 'Hola! Bienvenida a Dulce Paraiso, pasteleria casera con sabor venezolano en Malaga. Estamos encantadas de ayudarte a crear tu tarta especial!'],
-    ['porciones', 'Para ayudarte mejor, cuantas personas van a disfrutar la tarta?'],
-    ['diseno', 'Perfecto! Tienes algun diseno o modelo en mente? Puedes ver nuestro catalogo en www.dulceparaiso.es para inspirarte. Si no tienes idea no te preocupes, te ayudamos!'],
-    ['guiar', 'Te gustaria que te guiemos paso a paso para crear la tarta perfecta para ti? Responde SI o NO.'],
-    ['si_guiar', 'Genial! Any te va a atender personalmente ahora para ayudarte a disenar tu tarta ideal. Vas a quedar encantada con el resultado!'],
-    ['no_guiar', 'Sin problema! Puedes ver disenos en www.dulceparaiso.es y escribirnos al 681 90 19 14 cuando lo tengas claro. Estamos aqui para lo que necesites!'],
-    ['seguimiento', 'Hola! Soy Dulce Paraiso. Como te parecio nuestra propuesta? Te gustaria que hagamos tu tarta especial? Estamos aqui para ayudarte.'],
-    ['respuesta_default', 'Gracias por contactar a Dulce Paraiso! Para mas informacion escribenos al 681 90 19 14 o visita www.dulceparaiso.es. Te respondemos enseguida!']
+    ['bienvenida', 'Hola! Bienvenida a Dulce Paraiso, pasteleria artesanal hecha con amor y recetas caseras en Malaga. Estamos encantadas de ayudarte a crear tu tarta especial!'],
+    ['ocasion', 'Que ocasion vamos a celebrar? Por ejemplo: cumpleanos, boda, bautizo, comunion, aniversario...'],
+    ['porciones', 'Para cuantas personas necesitas la tarta?'],
+    ['diseno', 'Tienes algun diseno o modelo en mente? Si tienes una foto de referencia puedes enviarmela ahora mismo! Si no tienes idea, no te preocupes, te ayudamos a elegir.'],
+    ['lactosa', 'La tarta necesita ser sin lactosa o tienes alguna alergia o intolerancia alimentaria que debamos tener en cuenta?'],
+    ['guiar', 'Perfecto! Con toda esta informacion, te gustaria que te guiemos para crear la tarta perfecta para ti? Responde SI o NO.'],
+    ['si_guiar', 'Genial! Any te va a atender personalmente ahora para disenar tu tarta ideal. En breve te escribe!'],
+    ['no_guiar', 'Sin problema! Puedes ver disenos en www.dulceparaiso.es. Si tienes preguntas o cambias de idea aqui estamos!'],
+    ['seguimiento', 'Hola! Te escribimos desde Dulce Paraiso. Pudiste ver la propuesta que te enviamos para tu tarta? Nos encantaria hacerla realidad para ti. Cualquier duda aqui estamos!'],
+    ['respuesta_default', 'Estamos aqui para ayudarte! Cuentanos que necesitas o visita www.dulceparaiso.es para ver nuestro catalogo de tartas.']
   ];
   msgSheet.getRange(1, 1, mensajes.length, 2).setValues(mensajes);
   msgSheet.getRange(1, 1, 1, 2).setBackground('#7c6ba0').setFontColor('#ffffff').setFontWeight('bold');
@@ -129,17 +183,22 @@ function setupHoja() {
   var clientesSheet = ss.getSheetByName('Clientes');
   if (!clientesSheet) clientesSheet = ss.insertSheet('Clientes', 1);
   clientesSheet.clearContents();
-  var headers = [['Telefono', 'Estado', 'Porciones', 'Diseno solicitado', 'Ultimo contacto', 'Oferta enviada (escribe la fecha)', 'Seguimiento enviado']];
-  clientesSheet.getRange(1, 1, 1, 7).setValues(headers);
-  clientesSheet.getRange(1, 1, 1, 7).setBackground('#1565c0').setFontColor('#ffffff').setFontWeight('bold');
+  var headers = [['Telefono', 'Estado', 'Porciones', 'Diseno solicitado', 'Ultimo contacto', 'Oferta enviada (escribe la fecha)', 'Seguimiento enviado', 'Estado venta', 'Fecha de entrega', 'Evento en Calendar']];
+  clientesSheet.getRange(1, 1, 1, 10).setValues(headers);
+  clientesSheet.getRange(1, 1, 1, 10).setBackground('#1565c0').setFontColor('#ffffff').setFontWeight('bold');
   clientesSheet.setColumnWidth(1, 150);
   clientesSheet.setColumnWidth(2, 120);
   clientesSheet.setColumnWidth(3, 110);
   clientesSheet.setColumnWidth(4, 220);
   clientesSheet.setColumnWidth(5, 170);
-  clientesSheet.setColumnWidth(6, 260);
+  clientesSheet.setColumnWidth(6, 200);
   clientesSheet.setColumnWidth(7, 180);
-  clientesSheet.getRange(1, 6).setNote('Any: cuando envies una oferta a un cliente, escribe aqui la fecha (ej: 12/05/2026). El bot enviara un seguimiento automatico al dia siguiente si el cliente no responde.');
+  clientesSheet.setColumnWidth(8, 130);
+  clientesSheet.setColumnWidth(9, 160);
+  clientesSheet.setColumnWidth(10, 170);
+  clientesSheet.getRange(1, 6).setNote('Any: cuando envies una oferta, escribe aqui la fecha (ej: 12/05/2026). El bot enviara seguimiento automatico al dia siguiente.');
+  clientesSheet.getRange(1, 8).setNote('Any: escribe "Vendida" cuando la clienta confirme el pedido.');
+  clientesSheet.getRange(1, 9).setNote('Any: escribe la fecha de entrega (ej: 20/06/2026). Al marcar Vendida + fecha, se crea el evento en Google Calendar automaticamente.');
 
   // --- Pestana 3: Respuestas Rapidas ---
   var rrSheet = ss.getSheetByName('Respuestas Rapidas');
@@ -155,15 +214,15 @@ function setupHoja() {
   rrSheet.clearContents();
   var respuestas = [
     ['Palabras clave', 'Respuesta'],
-    ['precio,presupuesto,cuanto cuesta,cuanto vale,cuanto cobras,coste', 'Los precios varian segun el tamano y diseno. Para un presupuesto escríbenos al 681 90 19 14 o visita www.dulceparaiso.es. Te respondemos en menos de 24h!'],
+    ['precio,presupuesto,cuanto cuesta,cuanto vale,cuanto cobras,coste', 'Los precios varian segun el tamano y diseno. Cuentanos cuantas personas sois y la ocasion para darte un presupuesto personalizado!'],
     ['entrega,envio,domicilio,llevas,reparto', 'Si, hacemos entregas a domicilio en Malaga y alrededores. El coste depende de la distancia. Preguntanos sin compromiso!'],
     ['sabores,chocolate,vainilla,tres leches,red velvet', 'Hacemos todo tipo de tartas: tres leches, chocolate, vainilla, red velvet, drip cake y mucho mas. Tambien sin lactosa. Mira fotos en www.dulceparaiso.es'],
     ['tiempo,plazo,anticipacion,cuando,urgente', 'Necesitamos un minimo de 72 horas. Para bodas o eventos grandes reserva con mas tiempo. Contactanos cuanto antes!'],
     ['cumpleanos,cumple,aniversario,fiesta', 'Los cumpleanos merecen algo especial! Hacemos tartas personalizadas para cada ocasion. Cuentanos cuantas personas sois y la fecha!'],
-    ['boda,matrimonio,novios', 'Felicidades! Hacemos tartas nupciales personalizadas con amor venezolano. Contactanos al 681 90 19 14 para planificar el diseno perfecto.'],
-    ['pago,pagar,bizum,transferencia,efectivo', 'Aceptamos Bizum, transferencia bancaria y efectivo. Para mas info escribenos al 681 90 19 14.'],
-    ['gracias,muchas gracias,perfecto,genial,chevere', 'Gracias a ti! Estamos aqui para lo que necesites. Esperamos endulzar tu dia especial con nuestras tartas venezolanas!'],
-    ['instagram,facebook,redes,foto', 'Nos puedes encontrar en Instagram y Facebook como Dulce Paraiso. Tambien en www.dulceparaiso.es para ver todo el catalogo!']
+    ['boda,matrimonio,novios', 'Felicidades! Hacemos tartas nupciales totalmente personalizadas. Cuentanos tu vision y lo hacemos realidad!'],
+    ['pago,pagar,bizum,transferencia,efectivo', 'Aceptamos Bizum, transferencia bancaria y efectivo.'],
+    ['gracias,muchas gracias,perfecto,genial,chevere', 'Gracias a ti! Estamos aqui para lo que necesites. Esperamos endulzar tu dia especial!'],
+    ['instagram,facebook,redes,foto', 'Puedes ver nuestras tartas en Instagram y en www.dulceparaiso.es. Hay muchos disenos y seguro encuentras inspiracion!']
   ];
   rrSheet.getRange(1, 1, respuestas.length, 2).setValues(respuestas);
   rrSheet.getRange(1, 1, 1, 2).setBackground('#2e7d32').setFontColor('#ffffff').setFontWeight('bold');
@@ -174,5 +233,5 @@ function setupHoja() {
   }
 
   SpreadsheetApp.flush();
-  Logger.log('Hoja configurada correctamente con 3 pestanas');
+  Logger.log('Hoja configurada correctamente con 3 pestanas y Calendar integrado');
 }
