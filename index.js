@@ -93,6 +93,24 @@ function markFollowupSent(phone) {
   httpsPost(APPS_SCRIPT_URL, { action: 'mark_followup', phone });
 }
 
+async function loadStates() {
+  if (!APPS_SCRIPT_URL) return;
+  try {
+    const data = await httpsGet(APPS_SCRIPT_URL + '?action=get_states');
+    const states = JSON.parse(data);
+    let restored = 0;
+    for (const [phone, state] of Object.entries(states)) {
+      if (!conversations.has(phone)) {
+        conversations.set(phone, { state, data: {} });
+        restored++;
+      }
+    }
+    console.log('Estados restaurados: ' + restored + ' conversaciones cargadas desde Sheets');
+  } catch(e) {
+    console.log('Error cargando estados:', e.message);
+  }
+}
+
 async function checkFollowUps() {
   if (!APPS_SCRIPT_URL || !isConnected) return;
   try {
@@ -153,6 +171,7 @@ client.on('ready', () => {
   isConnected = true;
   currentQR = null;
   console.log('Bot conectado y listo!');
+  loadStates();
   setInterval(checkFollowUps, 60 * 60 * 1000);
 });
 client.on('disconnected', (reason) => {

@@ -20,7 +20,21 @@ function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (action === 'config') return getConfig(ss);
   if (action === 'followups') return getFollowups(ss);
+  if (action === 'get_states') return getStates(ss);
   return ContentService.createTextResponse('OK');
+}
+
+function getStates(ss) {
+  var sheet = ss.getSheetByName('Clientes');
+  if (!sheet) return ContentService.createTextResponse('{}').setMimeType(ContentService.MimeType.JSON);
+  var rows = sheet.getDataRange().getValues();
+  var states = {};
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0] && rows[i][1]) {
+      states[String(rows[i][0])] = String(rows[i][1]);
+    }
+  }
+  return ContentService.createTextResponse(JSON.stringify(states)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
