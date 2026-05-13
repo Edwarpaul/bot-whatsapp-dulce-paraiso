@@ -214,18 +214,20 @@ client.on('message', async (msg) => {
 
   switch (conv.state) {
     case STATES.NEW:
-      reply = MSG.bienvenida + '\n\n' + MSG.ocasion;
       conv.state = STATES.OCASION;
-      break;
+      conversations.set(phone, conv);
+      saveClient(phone, conv.state, conv.data);
+      botReplying.add(phone);
+      setTimeout(() => botReplying.delete(phone), 8000);
+      try { await msg.reply(MSG.bienvenida); } catch(e) { await client.sendMessage(phone, MSG.bienvenida); }
+      await new Promise(r => setTimeout(r, 800));
+      try { await client.sendMessage(phone, MSG.ocasion); } catch(e) {}
+      await new Promise(r => setTimeout(r, 800));
+      try { await client.sendMessage(phone, MSG.porciones); } catch(e) {}
+      return;
 
     case STATES.OCASION:
       conv.data.ocasion = text;
-      reply = MSG.porciones;
-      conv.state = STATES.PORCIONES;
-      break;
-
-    case STATES.PORCIONES:
-      conv.data.porciones = text;
       reply = MSG.diseno;
       conv.state = STATES.DISENO;
       break;
