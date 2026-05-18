@@ -20,6 +20,7 @@ const STATES = {
 const conversations = new Map();
 const botReplying = new Set();
 const processedMessages = new Set();
+const messageBuffer = new Map(); // buffer para esperar a que el cliente termine de escribir
 let currentQR = null;
 let isConnected = false;
 
@@ -198,22 +199,12 @@ client.on('message_create', async (msg) => {
   }
 });
 
-client.on('message', async (msg) => {
-  if (msg.from.includes('g.us')) return;
-  if (msg.from === 'status@broadcast') return;
-  if (msg.fromMe) return;
-
-  const msgId = msg.id._serialized;
-  if (processedMessages.has(msgId)) return;
-  processedMessages.add(msgId);
-  setTimeout(() => processedMessages.delete(msgId), 60000);
-
+async function processMessage(msg) {
   const phone = msg.from;
   const text = (msg.body || '').trim();
   const isMedia = ['image', 'video', 'document', 'sticker'].includes(msg.type);
   const conv = conversations.get(phone) || { state: STATES.NEW, data: {} };
 
-  // Si Any esta atendiendo, el bot no responde bajo ninguna circunstancia
   if (conv.state === STATES.HANDOFF) return;
 
   let reply = null;
@@ -283,6 +274,38 @@ client.on('message', async (msg) => {
       console.log('Error al responder:', e.message);
     }
   }
+}
+
+client.on('message', async (msg) => {
+  if (msg.from.includes('g.us')) return;
+  if (msg.from === 'status@broadcast') return;
+  if (msg.fromMe) return;
+
+  // Ignorar mensajes antiguos (del historial al reconectar)
+  const msgAge = (Date.now() / 1000) - msg.timestamp;
+  if (msgAge > 60) return;
+
+  const msgId = msg.id._serialized;
+  if (processedMessages.has(msgId)) return;
+  processedMessages.add(msgId);
+  setTimeout(() => processedMessages.delete(msgId), 60000);
+
+  const phone = msg.from;
+
+  // Si Any esta atendiendo, el bot no responde
+  const conv = conversations.get(phone) || { state: STATES.NEW, data: {} };
+  if (conv.state === STATES.HANDOFF) return;
+
+  // Buffer de 3 segundos: espera a que el cliente termine de escribir
+  // Si manda varios mensajes seguidos, solo responde al ultimo
+  if (messageBuffer.has(phone)) {
+    clearTimeout(messageBuffer.get(phone));
+  }
+  const timer = setTimeout(async () => {
+    messageBuffer.delete(phone);
+    await processMessage(msg);
+  }, 3000);
+  messageBuffer.set(phone, timer);
 });
 
 client.initialize();
