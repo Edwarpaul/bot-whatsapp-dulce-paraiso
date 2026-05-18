@@ -19,6 +19,7 @@ const STATES = {
 
 const conversations = new Map();
 const botReplying = new Set();
+const processedMessages = new Set();
 let currentQR = null;
 let isConnected = false;
 
@@ -202,6 +203,11 @@ client.on('message', async (msg) => {
   if (msg.from === 'status@broadcast') return;
   if (msg.fromMe) return;
 
+  const msgId = msg.id._serialized;
+  if (processedMessages.has(msgId)) return;
+  processedMessages.add(msgId);
+  setTimeout(() => processedMessages.delete(msgId), 60000);
+
   const phone = msg.from;
   const text = (msg.body || '').trim();
   const isMedia = ['image', 'video', 'document', 'sticker'].includes(msg.type);
@@ -272,10 +278,9 @@ client.on('message', async (msg) => {
     botReplying.add(phone);
     setTimeout(() => botReplying.delete(phone), 5000);
     try {
-      await msg.reply(reply);
+      await client.sendMessage(phone, reply);
     } catch(e) {
       console.log('Error al responder:', e.message);
-      try { await client.sendMessage(phone, reply); } catch(e2) {}
     }
   }
 });
